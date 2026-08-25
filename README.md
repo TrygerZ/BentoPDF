@@ -10,6 +10,7 @@
 
 [![Docker Downloads](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Falam00000%2Fbentopdf%2Fbentopdf&query=%24.downloadCount&logo=docker&label=Docker%20Downloads&color=blue)](https://github.com/alam00000/bentopdf/pkgs/container/bentopdf) [![Ko-fi](https://img.shields.io/badge/Buy%20me%20a%20Coffee-yellow?logo=kofi&style=flat-square)](https://ko-fi.com/alio01) ![GitHub Stars](https://img.shields.io/github/stars/alam00000/bentopdf?style=social)
 [![Sponsor me on GitHub](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4)](https://github.com/sponsors/alam00000)
+[![Desktop](https://img.shields.io/badge/Desktop-Tauri%20v2%20%7C%20offline%20%E2%80%A2%20tools--only-24c8ff?style=flat-square&logo=tauri)](./berkas/RELEASE_TAURI_v2.8.7.md) [![Offline WASM](https://img.shields.io/badge/WASM-offline%20%7C%20140MB-success?style=flat-square)](./berkas/MAINTENANCE_TAURI.md)
 
 ![BentoPDF Tools](public/images/bentopdf-tools.png)
 
@@ -48,6 +49,7 @@
   - [Digital Signature CORS Proxy](#digital-signature-cors-proxy-required)
   - [Version Management](#-version-management)
   - [Development Setup](#-development-setup)
+  - [Desktop App (Tauri)](#-bentopdf-desktop-tauri)
 - [Tech Stack & Background](#️-tech-stack--background)
 - [Roadmap](#️-roadmap)
 - [Contributing](#-contributing)
@@ -1202,6 +1204,81 @@ For detailed release instructions, see [RELEASE.md](RELEASE.md).
    ```
 
    This ensures your latest changes are applied inside the container.
+
+### 🖥️ BentoPDF Desktop (Tauri)
+
+> **Status:** ✅ Production-ready — v2.8.7 tools-only desktop shell (Tauri v2). Semua 118 tool web berjalan identik di desktop, 100% offline, tanpa upload.
+
+BentoPDF Desktop adalah **shell Tauri v2** yang membungkus build Vite yang sama (tanpa perubahan logic PDF tools) — diganti hanya *shell* OS: Window Tauri menggantikan browser, dialog OS menggantikan `<input type=file>`, dan WASM yang sebelumnya di-CDN kini dibundel lokal di `public/wasm/` → `dist/wasm/`.
+
+| Aspek | Desktop (Tauri) | Web |
+| :--- | :--- | :--- |
+| **UI** | **Tools-only** (`SIMPLE_MODE=true`) — `#tool-grid` + search + viewer, tanpa hero/FAQ/testimonials/footer marketing (`simple-index.html` → `dist/index.html`) | Full site + marketing chrome |
+| **WASM** | Bundled lokal `public/wasm/` (140 MB, 8 paket) → `dist/wasm/` — **100% offline**, no CDN fetch | CDN jsDelivr (`cdn.jsdelivr.net`) + fallback lokal |
+| **File** | Native **Open/Save dialog** (`@tauri-apps/plugin-dialog` + `plugin-fs`), **drag-drop Explorer/Finder** (`tauri://drag-drop`), **file association** double-click `.pdf` → BentoPDF (deep-link) | `<input type=file>` + drag-drop browser |
+| **Build** | `COMPRESSION_MODE=o` (original only, installer sudah compressed) | `all`/`g`/`b` untuk nginx/CDN |
+| **Service Worker** | **Disabled** — guard di `src/js/sw-register.ts` (`if (__TAURI__ || tauri:/asset:) return`) | Enabled (`sw.js` v11) |
+| **CORS proxy** | Non-aktif (`/cors-proxy` guard `__TAURI__`) | Aktif untuk Digital Signature TSA |
+| **Update** | Auto-update via `@tauri-apps/plugin-updater` (GitHub Releases + `latest.json`) | PWA `sw.js` update |
+
+**Prerequisites Desktop:**
+
+- **Node.js ≥18**, **Rust ≥1.77** (`rustup` stable), **Tauri CLI** sudah ada (`@tauri-apps/cli` di `devDependencies`, atau `cargo install tauri-cli@2`)
+- **Windows:** WebView2 (preinstall di Win 11) + [WiX Toolset v3.11](https://wixtoolset.org) (untuk `.msi`) + [NSIS 3](https://nsis.sourceforge.io) (untuk `.exe`) + `cargo tauri build`
+- **macOS/Linux:** lihat [Tauri prerequisites](https://tauri.app/start/prerequisites/)
+- WASM offline ±140 MB sudah disiapkan (`public/wasm/`) — jika baru clone, jalankan `prepare:tauri` sekali
+
+**Quick Start Desktop (Windows-friendly — PowerShell 5.1 compat):**
+
+```bash
+# 0. Clone & install
+git clone https://github.com/alam00000/bentopdf.git
+cd bentopdf
+npm install
+
+# 1. Siapkan WASM offline (sekali setelah clone, atau saat bump versi WASM)
+npm run prepare:tauri
+# force re-download semua paket (8 paket: pymupdf, gs, cpdf, tesseract, vips, libreoffice, pdfium, qpdf)
+node scripts/prepare-tauri-assets.mjs --force
+# → public/wasm/* (140 MB), .env.tauri (VITE_WASM_*=/wasm/...)
+
+# 2. Dev — hot-reload WebView + Vite (SIMPLE_MODE tools-only)
+npm run tauri:dev
+# alias: cargo tauri dev
+# → window 1280×800, load simple-index.html (tool-grid), HMR via http://localhost:5173
+
+# 3. Build production — SIMPLE_MODE + offline + tools-only (0 CDN hits)
+# Option A — wrapper cross-platform (recommended di Windows, inject env + CDN rewrite → offline.local)
+node scripts/tauri-before-build.mjs
+# Option B — via Tauri CLI (pakai beforeBuildCommand di src-tauri/tauri.conf.json)
+npm run tauri:build
+# alias: cargo tauri build
+# → dist/index.html (dari simple-index.html, hero 0), dist/*.html (131 = 118 tools + 13 hub), dist/wasm/* (140 MB), COMPRESSION_MODE=o (0 .br/.gz)
+# → installer di src-tauri/target/release/bundle/ (.msi + .exe di Windows)
+```
+
+**Verify offline — harus 0 CDN hits di build Tauri:**
+
+```bash
+# setelah tauri-before-build
+Select-String -Path dist\assets\*.js -Pattern "cdn\.jsdelivr\.net" | Measure-Object
+# Expected: 0  (VITE_USE_CDN=false + offlineCdnRewritePlugin rewrite → offline.local)
+Select-String -Path dist\assets\*.js -Pattern "offline\.local" | Measure-Object
+# Expected: ≥1 (CDN literals di-rewrite)
+Test-Path dist\wasm              # True (8 subdir)
+Test-Path dist\libreoffice-wasm  # True (dual path, resources juga)
+Select-String -Path dist\index.html -Pattern 'id="hero-section"' | Measure-Object # 0
+Select-String -Path dist\index.html -Pattern 'id="tool-grid"'     | Measure-Object # 1
+cargo check --manifest-path src-tauri/Cargo.toml # hijau
+npm run test:run # 906 passed, 12 skipped, 2 failed suites known editcore (bukan regresi Tauri)
+```
+
+> **Catatan:**
+> - `npm run prepare:tauri` hanya perlu sekali setelah `git clone` atau saat bump versi WASM di `src/js/const/cdn-version.ts`. WASM assets tidak disimpan di git (`public/wasm/` di-`.gitignore` penuh) — jalankan `npm run prepare:tauri` sekali setelah clone; `dist/wasm/` ter-copy otomatis via Vite `public/`.
+> - `beforeBuildCommand` di `src-tauri/tauri.conf.json` sudah set `SIMPLE_MODE=true BASE_URL=/ COMPRESSION_MODE=o VITE_USE_CDN=false VITE_WASM_*=/wasm/...` — jika pakai `cargo tauri build` langsung tanpa wrapper, env tetap ter-inject di Tauri bundler.
+> - Desktop **hanya tools-only**; tidak ada perubahan logic PDF (`src/js/logic/*`, `src/js/tools/*`). Web build tetap hidup (`npm run build` tanpa `SIMPLE_MODE`).
+> - Detail maintenance: [`berkas/MAINTENANCE_TAURI.md`](./berkas/MAINTENANCE_TAURI.md) — bump version, update WASM, build installer, release, troubleshooting (SW guard, CDN rewrite, `COMPRESSION_MODE=o`).
+> - Release notes: [`berkas/RELEASE_TAURI_v2.8.7.md`](./berkas/RELEASE_TAURI_v2.8.7.md) | QA checklist: [`berkas/QA_TAURI_CHECKLIST.md`](./berkas/QA_TAURI_CHECKLIST.md) | Master plan: [`berkas/MASTER_PLAN_TAURI_DESKTOP.md`](./berkas/MASTER_PLAN_TAURI_DESKTOP.md)
 
 ---
 

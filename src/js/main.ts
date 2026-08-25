@@ -29,6 +29,11 @@ import {
   setStoredItem,
   removeStoredItem,
 } from './utils/safe-storage.js';
+import { state } from './state.js';
+import { checkCrossOriginIsolated } from './tauri/check-isolation.js';
+import { isTauri } from './tauri/file-ops.js';
+import { setupTauriDragDrop } from './tauri/drag-drop.js';
+import { setupFileAssociation } from './tauri/file-association.js';
 declare const __BRAND_NAME__: string;
 
 const init = async () => {
@@ -36,6 +41,43 @@ const init = async () => {
   await loadRuntimeConfig();
   injectLanguageSwitcher();
   applyTranslations();
+
+  // ── Fase 4: Tauri native integration (dialog/FS/drag-drop/file-assoc) ──
+  // No-op di web; hanya aktif ketika window.__TAURI__ tersedia.
+  if (isTauri()) {
+    checkCrossOriginIsolated();
+    const integrateTauriFiles = (files: File[]) => {
+      if (!files || files.length === 0) return;
+      // Push ke global state agar tool pages melihatnya
+      state.files.push(...files);
+      window.dispatchEvent(
+        new CustomEvent('tauri:files-opened', { detail: { files } })
+      );
+      const fileInput = document.getElementById(
+        'file-input'
+      ) as HTMLInputElement | null;
+      if (fileInput) {
+        try {
+          const dt = new DataTransfer();
+          for (const f of state.files) dt.items.add(f);
+          fileInput.files = dt.files;
+          fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (e) {
+          console.warn('[tauri] failed to sync file-input:', e);
+        }
+      } else {
+        console.log(
+          `[tauri] ${files.length} file(s) added to state.files (no #file-input on this page)`
+        );
+      }
+    };
+    setupTauriDragDrop(integrateTauriFiles).catch((e) =>
+      console.error('[tauri] drag-drop setup failed:', e)
+    );
+    setupFileAssociation((file) => integrateTauriFiles([file])).catch((e) =>
+      console.error('[tauri] file-association setup failed:', e)
+    );
+  }
 
   if (isCurrentPageDisabled()) {
     document.title = t('disabledTool.title') || 'Tool Unavailable';

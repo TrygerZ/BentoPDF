@@ -54,3 +54,11 @@ test
 # Sibling checkouts of the engine/viewer forks
 bentopdf-pdfium-viewer/
 bentopdf-pymupdf-wasm/
+berkas/
+
+# Tauri
+src-tauri/target/
+
+# Tauri desktop - WASM assets didownload via scripts/prepare-tauri-assets.mjs
+public/wasm/
+*.bak

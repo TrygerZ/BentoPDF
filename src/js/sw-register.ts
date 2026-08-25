@@ -4,7 +4,13 @@
  *
  * Note: Service Worker is disabled in development mode to prevent
  * conflicts with Vite's HMR (Hot Module Replacement)
+ * Tauri: Service Worker is not supported in tauri:// / asset: protocol — guard skips registration.
  */
+
+// Tauri WebView guard — MUST be at the very top (before any SW logic).
+// Wrapped in IIFE to keep `return` valid in ES module (top-level return is illegal).
+(() => {
+if ((window as any).__TAURI__ || (window as any).__TAURI_INTERNALS__ || location.protocol === 'tauri:' || location.protocol === 'asset:') { console.log('[SW] skipped in Tauri'); return; }
 
 // Skip service worker registration in development mode
 const isDevelopment =
@@ -109,3 +115,4 @@ if (isDevelopment) {
     });
   });
 }
+})();

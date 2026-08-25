@@ -469,6 +469,46 @@ function swPrecachePlugin(): Plugin {
   };
 }
 
+function offlineCdnRewritePlugin(): Plugin {
+  return {
+    name: 'offline-cdn-rewrite',
+    enforce: 'post' as const,
+    apply: 'build' as const,
+    generateBundle(_options, bundle) {
+      if (process.env.VITE_USE_CDN !== 'false') return;
+      let rewrote = 0;
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk.type === 'chunk' && typeof (chunk as any).code === 'string') {
+          const code: string = (chunk as any).code;
+          if (code.includes('cdn.jsdelivr.net')) {
+            (chunk as any).code = code
+              .replaceAll('https://cdn.jsdelivr.net', 'https://offline.local')
+              .replaceAll('http://cdn.jsdelivr.net', 'https://offline.local')
+              .replaceAll('cdn.jsdelivr.net', 'offline.local');
+            rewrote++;
+            console.log(`[offline-cdn-rewrite] rewrote CDN in ${fileName}`);
+          }
+        }
+        // Also handle assets that are JS-like (e.g., .mjs)
+        if (chunk.type === 'asset' && typeof (chunk as any).source === 'string') {
+          const src: string = (chunk as any).source as string;
+          if (src.includes('cdn.jsdelivr.net')) {
+            (chunk as any).source = src
+              .replaceAll('https://cdn.jsdelivr.net', 'https://offline.local')
+              .replaceAll('http://cdn.jsdelivr.net', 'https://offline.local')
+              .replaceAll('cdn.jsdelivr.net', 'offline.local');
+            rewrote++;
+            console.log(`[offline-cdn-rewrite] rewrote CDN in asset ${fileName}`);
+          }
+        }
+      }
+      if (rewrote > 0) {
+        console.log(`[offline-cdn-rewrite] total ${rewrote} chunk(s) rewrote CDN → offline.local (VITE_USE_CDN=false)`);
+      }
+    },
+  };
+}
+
 function rewriteHtmlPathsPlugin(): Plugin {
   const baseUrl = process.env.BASE_URL || '/';
   const normalizedBase = baseUrl.replace(/\/?$/, '/');
@@ -544,6 +584,7 @@ export default defineConfig(() => {
       flattenPagesPlugin(),
       rewriteHtmlPathsPlugin(),
       swPrecachePlugin(),
+      offlineCdnRewritePlugin(),
       tailwindcss(),
       nodePolyfills({
         include: ['buffer', 'stream', 'util', 'zlib', 'process'],
@@ -553,30 +594,50 @@ export default defineConfig(() => {
           process: true,
         },
       }),
-      viteCompression({
-        algorithm: 'brotliCompress',
-        ext: '.br',
-        threshold: 1024,
-        filter: /\.(js|mjs|json|css|html|wasm|svg)$/i,
-        compressionOptions: {
-          params: {
-            [zlibConstants.BROTLI_PARAM_QUALITY]: 11,
-            [zlibConstants.BROTLI_PARAM_MODE]:
-              zlibConstants.BROTLI_MODE_GENERIC,
-          },
-        },
-        deleteOriginFile: false,
-      }),
-      viteCompression({
-        algorithm: 'gzip',
-        ext: '.gz',
-        threshold: 1024,
-        filter: /\.(js|mjs|json|css|html|wasm|svg)$/i,
-        compressionOptions: {
-          level: 9,
-        },
-        deleteOriginFile: false,
-      }),
+      // Tauri (Fase 3): COMPRESSION_MODE=o disables pre-compression — installer already compressed.
+      // Modes: o=original only, g=gzip only, b=brotli only, all=both (default).
+      ...(() => {
+        const mode = (process.env.COMPRESSION_MODE || 'all').toLowerCase();
+        const plugins: Plugin[] = [];
+        if (mode === 'all' || mode === 'b') {
+          plugins.push(
+            viteCompression({
+              algorithm: 'brotliCompress',
+              ext: '.br',
+              threshold: 1024,
+              filter: /\.(js|mjs|json|css|html|wasm|svg)$/i,
+              compressionOptions: {
+                params: {
+                  [zlibConstants.BROTLI_PARAM_QUALITY]: 11,
+                  [zlibConstants.BROTLI_PARAM_MODE]:
+                    zlibConstants.BROTLI_MODE_GENERIC,
+                },
+              },
+              deleteOriginFile: false,
+            }) as Plugin
+          );
+        }
+        if (mode === 'all' || mode === 'g') {
+          plugins.push(
+            viteCompression({
+              algorithm: 'gzip',
+              ext: '.gz',
+              threshold: 1024,
+              filter: /\.(js|mjs|json|css|html|wasm|svg)$/i,
+              compressionOptions: {
+                level: 9,
+              },
+              deleteOriginFile: false,
+            }) as Plugin
+          );
+        }
+        if (mode === 'o') {
+          console.log('[Vite] COMPRESSION_MODE=o — skipping .br/.gz pre-compression (Tauri)');
+        } else {
+          console.log(`[Vite] COMPRESSION_MODE=${mode} — pre-compression: ${plugins.map((p: any) => p?.name || 'compress').join(', ')}`);
+        }
+        return plugins;
+      })(),
     ],
     define: {
       __SIMPLE_MODE__: JSON.stringify(process.env.SIMPLE_MODE === 'true'),

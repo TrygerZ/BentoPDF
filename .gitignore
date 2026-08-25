@@ -62,3 +62,6 @@ src-tauri/target/
 # Tauri desktop - WASM assets didownload via scripts/prepare-tauri-assets.mjs
 public/wasm/
 *.bak
+# Tauri icon generator side-effects (not used by desktop build)
+src-tauri/icons/android/
+src-tauri/icons/ios/

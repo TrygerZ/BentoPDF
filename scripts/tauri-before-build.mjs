@@ -29,6 +29,8 @@ const ROOT = path.resolve(__dirname, "..");
 const TAURI_BUILD_ENV = {
   SIMPLE_MODE: "true",
   BASE_URL: "/",
+  // security-headers-docs.conf is a tracked web-deployment artifact — do not regenerate with desktop env.
+  SKIP_SECURITY_HEADERS: "true",
   COMPRESSION_MODE: "o",
   VITE_USE_CDN: "false",
   VITE_WASM_PYMUPDF_URL: "/wasm/pymupdf/",

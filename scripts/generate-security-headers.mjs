@@ -3,6 +3,14 @@ import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Tauri/desktop builds regenerate this file with desktop env (SIMPLE_MODE=true),
+// which strips https://api.github.com from connect-src and dirties the tracked
+// security-headers-docs.conf. Headers are web-deployment only — allow skipping.
+if (process.env.SKIP_SECURITY_HEADERS === 'true') {
+  console.log('[security-headers] skipped (SKIP_SECURITY_HEADERS=true — Tauri/desktop build, headers are web-deployment only)');
+  process.exit(0);
+}
+
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 function originOf(urlStr) {

@@ -1209,7 +1209,7 @@ For detailed release instructions, see [RELEASE.md](RELEASE.md).
 
 ### 🖥️ BentoPDF Desktop (Tauri)
 
-> **Status:** ✅ Production-ready — v2.8.7 tools-only desktop shell (Tauri v2). Semua 118 tool web berjalan identik di desktop, 100% offline, tanpa upload.
+> **Status:** ✅ Production-ready — v2.8.8 tools-only desktop shell (Tauri v2). Semua 118 tool web berjalan identik di desktop, 100% offline, tanpa upload.
 
 BentoPDF Desktop adalah **shell Tauri v2** yang membungkus build Vite yang sama (tanpa perubahan logic PDF tools) — diganti hanya *shell* OS: Window Tauri menggantikan browser, dialog OS menggantikan `<input type=file>`, dan WASM yang sebelumnya di-CDN kini dibundel lokal di `public/wasm/` → `dist/wasm/`.
 

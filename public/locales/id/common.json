@@ -127,6 +127,8 @@
     "shortcuts": "Pintasan",
     "preferences": "Preferensi",
     "displayPreferences": "Preferensi Tampilan",
+    "theme": "Tema",
+    "themeDescription": "Pilih tema visual dan warna aksen",
     "searchShortcuts": "Cari pintasan...",
     "shortcutsInfo": "Tekan dan tahan tombol untuk mengatur pintasan. Perubahan disimpan otomatis.",
     "shortcutsWarning": "⚠️ Hindari pintasan browser umum (Cmd/Ctrl+W, Cmd/Ctrl+T, Cmd/Ctrl+N dll.) karena mungkin tidak bekerja dengan baik.",

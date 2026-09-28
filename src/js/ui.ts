@@ -42,6 +42,8 @@ export const dom = {
   importShortcutsBtn: document.getElementById('import-shortcuts-btn'),
   exportShortcutsBtn: document.getElementById('export-shortcuts-btn'),
   openShortcutsBtn: document.getElementById('open-shortcuts-btn'),
+  openSettingsNavbarBtn: document.getElementById('open-settings-navbar-btn'),
+  openSettingsNavbarMobileBtn: document.getElementById('open-settings-navbar-mobile-btn'),
   warningModal: document.getElementById('warning-modal'),
   warningTitle: document.getElementById('warning-title'),
   warningMessage: document.getElementById('warning-message'),

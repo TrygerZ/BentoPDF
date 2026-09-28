@@ -19,7 +19,17 @@ function resolveWasmUrl() {
   }
   const resolve = import.meta.resolve;
   if (typeof resolve !== 'function') return null;
-  return new URL(resolve('bentopdf-pdfium/editcore.wasm')).pathname;
+  const pathname = new URL(resolve('bentopdf-pdfium/editcore.wasm')).pathname;
+  // Node (non-browser) needs a real filesystem path: undo percent-encoding
+  // (e.g. spaces in the repo path) and drop the leading slash Windows adds
+  // before the drive letter ("/D:/..." -> "D:/...").
+  let decoded = pathname;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    decoded = pathname;
+  }
+  return /^\/[A-Za-z]:[\\/]/.test(decoded) ? decoded.slice(1) : decoded;
 }
 
 const wasmUrl = resolveWasmUrl();

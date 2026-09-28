@@ -15,6 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -172,8 +173,25 @@ const PACKAGES = [
   {
     name: "pymupdf",
     cdn: "https://cdn.jsdelivr.net/npm/@bentopdf/pymupdf-wasm@0.11.16/",
-    files: ["dist/index.js"],
+    files: [
+      "dist/index.js",
+      "assets/pyodide.js",
+      "assets/pyodide.asm.js",
+      "assets/pyodide.asm.wasm",
+      "assets/pyodide-lock.json",
+      "assets/python_stdlib.zip",
+      "assets/fonttools-4.56.0-py3-none-any.whl",
+      "assets/lxml-5.4.0-cp313-cp313-pyodide_2025_0_wasm32.whl",
+      "assets/numpy-2.2.5-cp313-cp313-pyodide_2025_0_wasm32.whl",
+      "assets/opencv_python-4.11.0.86-cp313-cp313-pyodide_2025_0_wasm32.whl",
+      "assets/pdf2docx-0.5.8-py3-none-any.whl",
+      "assets/pymupdf-1.26.3-cp313-none-pyodide_2025_0_wasm32.whl",
+      "assets/pymupdf4llm-0.0.27-py3-none-any.whl",
+      "assets/python_docx-1.2.0-py3-none-any.whl",
+      "assets/typing_extensions-4.12.2-py3-none-any.whl",
+    ],
     optionalFiles: ["dist/pymupdf.wasm", "dist/pymupdf.data", "dist/index.min.js"],
+    localTgz: path.join(ROOT, "bentopdf-airgap-bundle/bentopdf-pymupdf-wasm-0.11.16.tgz"),
     dest: "pymupdf",
     envVar: "VITE_WASM_PYMUPDF_URL",
     envValue: "/wasm/pymupdf/",
@@ -397,6 +415,26 @@ async function processPackage(pkg) {
 
   // generic CDN packages: pymupdf, gs, cpdf
   log(`\n[prepare-tauri] ${pkg.name}: downloading → public/wasm/${pkg.dest}/`);
+  if (pkg.localTgz && fs.existsSync(pkg.localTgz)) {
+    const anyMissing = pkg.files.some((f) => !fileExistsAndNotEmpty(path.join(destBase, f)));
+    if (FORCE || anyMissing) {
+      log(`  ↻ extracting local bundle ${path.relative(ROOT, pkg.localTgz)} → public/wasm/${pkg.dest}/`);
+      try {
+        ensureDir(path.join(destBase, "assets"));
+        ensureDir(path.join(destBase, "dist"));
+        const res = spawnSync("tar", ["-xzf", pkg.localTgz, "-C", destBase, "--strip-components=1", "package/dist", "package/assets"], {
+          stdio: "ignore",
+        });
+        if (res.status === 0) {
+          log(`  ✓ extracted local bundle to public/wasm/${pkg.dest}/`);
+        } else {
+          warn(`local bundle extraction returned code ${res.status}`);
+        }
+      } catch (e) {
+        warn(`local bundle extraction failed: ${e.message}`);
+      }
+    }
+  }
   for (const f of pkg.files) {
     const url = pkg.cdn + f;
     const dest = path.join(destBase, f);
@@ -517,6 +555,7 @@ function verifyRequiredFiles() {
   log(`\n[prepare-tauri] verifying required files (size>0)`);
   const checks = [
     { pkg: "pymupdf", file: "dist/index.js", desc: "pymupdf/dist/index.js" },
+    { pkg: "pymupdf", file: "assets/pyodide.js", desc: "pymupdf/assets/pyodide.js" },
     { pkg: "gs", file: "gs.js", desc: "gs/gs.js" },
     { pkg: "gs", file: "gs.wasm", desc: "gs/gs.wasm" },
     { pkg: "cpdf", file: "coherentpdf.browser.min.js", desc: "cpdf/coherentpdf.browser.min.js" },

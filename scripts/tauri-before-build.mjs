@@ -20,6 +20,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import fs from "node:fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,12 +68,48 @@ for (const [k, v] of Object.entries(TAURI_BUILD_ENV)) {
 }
 
 log(`ROOT=${ROOT}`);
-log("Spawning: npm run build");
 
-// Use npm.cmd on Windows, npm on Unix. spawnSync with shell:true handles both,
-// but we explicitly set env and stdio inherit.
 const isWin = process.platform === "win32";
 const npmCmd = isWin ? "npm.cmd" : "npm";
+
+function isFileNonEmpty(filePath) {
+  try {
+    const st = fs.statSync(filePath);
+    return st.isFile() && st.size > 0;
+  } catch {
+    return false;
+  }
+}
+
+const keyPyMuPdfAssets = [
+  path.join(ROOT, "public/wasm/pymupdf/dist/index.js"),
+  path.join(ROOT, "public/wasm/pymupdf/assets/pyodide.js"),
+];
+
+if (!keyPyMuPdfAssets.every(isFileNonEmpty)) {
+  log("PyMuPDF assets incomplete (missing dist/ or assets/). Running prepare:tauri...");
+  const prepResult = spawnSync(npmCmd, ["run", "prepare:tauri"], {
+    cwd: ROOT,
+    env: { ...process.env, ...TAURI_BUILD_ENV },
+    stdio: "inherit",
+    shell: true,
+  });
+
+  if (prepResult.error) {
+    console.error("[tauri-before-build] prepare:tauri spawn error:", prepResult.error);
+    process.exit(1);
+  }
+
+  if (prepResult.status !== 0) {
+    console.error(`[tauri-before-build] prepare:tauri failed with code ${prepResult.status}`);
+    process.exit(prepResult.status ?? 1);
+  }
+  log("PyMuPDF assets prepared successfully.");
+} else {
+  log("PyMuPDF assets verified. Skipping prepare step.");
+}
+
+log("Spawning: npm run build");
 
 const result = spawnSync(npmCmd, ["run", "build"], {
   cwd: ROOT,

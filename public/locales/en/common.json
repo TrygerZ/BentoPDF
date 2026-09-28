@@ -127,6 +127,8 @@
     "shortcuts": "Shortcuts",
     "preferences": "Preferences",
     "displayPreferences": "Display Preferences",
+    "theme": "Theme",
+    "themeDescription": "Choose visual theme and accent colors",
     "searchShortcuts": "Search shortcuts...",
     "shortcutsInfo": "Press and hold keys to set a shortcut. Changes are auto-saved.",
     "shortcutsWarning": "⚠️ Avoid common browser shortcuts (Cmd/Ctrl+W, Cmd/Ctrl+T, Cmd/Ctrl+N etc.) as they may not work reliably.",

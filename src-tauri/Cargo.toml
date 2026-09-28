@@ -1,6 +1,6 @@
 [package]
 name = "bentopdf-desktop"
-version = "2.8.7"
+version = "2.8.8"
 description = "BentoPDF Desktop — Privacy-first PDF toolkit"
 authors = ["BentoPDF Team"]
 license = "AGPL-3.0-only"

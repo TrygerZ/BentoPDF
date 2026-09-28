@@ -93,6 +93,32 @@
       </h4>
 
       <div class="space-y-4">
+        <!-- Theme Selector -->
+        <div
+          class="p-4 bg-gray-900 rounded-lg border border-gray-700"
+        >
+          <div class="mb-3">
+            <label
+              class="text-sm font-medium text-gray-200"
+              data-i18n="settings.theme"
+            >
+              Theme
+            </label>
+            <p
+              class="text-xs text-gray-400 mt-1"
+              data-i18n="settings.themeDescription"
+            >
+              Choose visual theme and accent colors
+            </p>
+          </div>
+          <div
+            id="theme-selector-grid"
+            class="grid grid-cols-2 sm:grid-cols-3 gap-2.5"
+          >
+            <!-- Rendered dynamically by Theme Manager -->
+          </div>
+        </div>
+
         <div
           class="flex items-center justify-between p-4 bg-gray-900 rounded-lg border border-gray-700"
         >

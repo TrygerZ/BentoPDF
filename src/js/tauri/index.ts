@@ -7,4 +7,5 @@
 export * from "./file-ops.js";
 export * from "./drag-drop.js";
 export * from "./file-association.js";
+export * from "./menu.js";
 export { checkCrossOriginIsolated } from "./check-isolation.js";

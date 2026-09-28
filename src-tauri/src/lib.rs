@@ -1,3 +1,5 @@
+mod menu;
+
 #[tauri::command]
 fn read_file_bytes(path: String) -> Result<Vec<u8>, String> {
     std::fs::read(&path).map_err(|e| format!("read {}: {}", path, e))
@@ -20,6 +22,9 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
+            let app_menu = menu::create_app_menu(app.handle())?;
+            app.set_menu(app_menu)?;
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -28,6 +33,9 @@ pub fn run() {
                 )?;
             }
             Ok(())
+        })
+        .on_menu_event(|app, event| {
+            menu::handle_menu_event(app, event);
         })
         .invoke_handler(tauri::generate_handler![read_file_bytes, write_file_bytes])
         .run(tauri::generate_context!())

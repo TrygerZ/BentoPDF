@@ -206,11 +206,11 @@ function sanitizeImageAsJpeg(imageBytes: Uint8Array | ArrayBuffer) {
 
 async function convertToPdf() {
   if (files.length === 0) {
-    showAlert('No Files', 'Please select at least one JPG file.');
+    showAlert('No Files', 'Please select at least one PNG file.');
     return;
   }
 
-  showLoader('Creating PDF from JPGs...');
+  showLoader('Creating PDF from PNGs...');
 
   try {
     const pdfDoc = await PDFLibDocument.create();
@@ -247,7 +247,7 @@ async function convertToPdf() {
     const pdfBytes = await pdfDoc.save();
     downloadFile(
       new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' }),
-      'from_jpgs.pdf'
+      'from_pngs.pdf'
     );
     showAlert('Success', 'PDF created successfully!', 'success', () => {
       resetState();

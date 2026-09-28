@@ -30,22 +30,34 @@ import {
   removeStoredItem,
 } from './utils/safe-storage.js';
 import { state } from './state.js';
+import {
+  initTheme,
+  getAvailableThemes,
+  getCurrentTheme,
+  setTheme,
+  cycleTheme,
+} from './utils/theme.js';
 import { checkCrossOriginIsolated } from './tauri/check-isolation.js';
 import { isTauri } from './tauri/file-ops.js';
 import { setupTauriDragDrop } from './tauri/drag-drop.js';
 import { setupFileAssociation } from './tauri/file-association.js';
+import { setupTauriMenu } from './tauri/menu.js';
 declare const __BRAND_NAME__: string;
 
 const init = async () => {
+  initTheme();
   await initI18n();
   await loadRuntimeConfig();
   injectLanguageSwitcher();
   applyTranslations();
 
-  // ── Fase 4: Tauri native integration (dialog/FS/drag-drop/file-assoc) ──
+  // ── Fase 4: Tauri native integration (dialog/FS/drag-drop/file-assoc/menu) ──
   // No-op di web; hanya aktif ketika window.__TAURI__ tersedia.
   if (isTauri()) {
     checkCrossOriginIsolated();
+    setupTauriMenu().catch((e) =>
+      console.error('[tauri] menu setup failed:', e)
+    );
     const integrateTauriFiles = (files: File[]) => {
       if (!files || files.length === 0) return;
       // Push ke global state agar tool pages melihatnya
@@ -777,13 +789,94 @@ const init = async () => {
     });
   }
 
+  // Theme Selector and Quick Switcher Setup
+  const themeSelectorGrid = document.getElementById('theme-selector-grid');
+  const renderThemeSelector = () => {
+    if (!themeSelectorGrid) return;
+    const currentTheme = getCurrentTheme();
+    const themes = getAvailableThemes();
+
+    themeSelectorGrid.innerHTML = themes
+      .map(
+        (th) => `
+      <button
+        type="button"
+        data-theme-id="${th.id}"
+        class="theme-card text-left p-3 rounded-lg border transition-all flex flex-col justify-between ${
+          th.id === currentTheme
+            ? 'border-indigo-500 bg-indigo-950/30 ring-1 ring-indigo-500'
+            : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+        }"
+      >
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-white truncate">${escapeHtml(th.name)}</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${
+            th.mode === 'dark'
+              ? 'bg-gray-700 text-gray-300'
+              : 'bg-amber-100 text-amber-900'
+          }">${th.mode}</span>
+        </div>
+        <div class="flex items-center gap-1.5 mt-auto pt-1">
+          <span class="w-3.5 h-3.5 rounded-full border border-gray-600 shadow-sm" style="background-color: ${th.colors.base}"></span>
+          <span class="w-3.5 h-3.5 rounded-full border border-gray-600 shadow-sm" style="background-color: ${th.colors.surface}"></span>
+          <span class="w-3.5 h-3.5 rounded-full border border-gray-600 shadow-sm" style="background-color: ${th.colors.accent}"></span>
+        </div>
+      </button>
+    `
+      )
+      .join('');
+
+    themeSelectorGrid.querySelectorAll('[data-theme-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const themeId = btn.getAttribute('data-theme-id');
+        if (themeId) {
+          setTheme(themeId as any, { transition: true });
+        }
+      });
+    });
+  };
+
+  renderThemeSelector();
+
+  window.addEventListener('themechange', () => {
+    renderThemeSelector();
+  });
+
+  const quickSwitchBtns = document.querySelectorAll(
+    '#theme-quick-switch-btn, #theme-quick-switch-mobile-btn'
+  );
+  quickSwitchBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      cycleTheme();
+    });
+  });
+
+  const openSettingsModal = (defaultTab: 'shortcuts' | 'preferences' = 'shortcuts') => {
+    if (!dom.shortcutsModal) return;
+    if (defaultTab === 'preferences' && preferencesTabBtn) {
+      preferencesTabBtn.click();
+    } else if (shortcutsTabBtn) {
+      shortcutsTabBtn.click();
+      renderShortcutsList();
+    }
+    dom.shortcutsModal.classList.remove('hidden');
+  };
+
   // Shortcuts UI Handlers
   if (dom.openShortcutsBtn) {
     dom.openShortcutsBtn.addEventListener('click', () => {
-      renderShortcutsList();
-      dom.shortcutsModal.classList.remove('hidden');
+      openSettingsModal('shortcuts');
     });
   }
+
+  const openSettingsNavbarBtns = document.querySelectorAll(
+    '#open-settings-navbar-btn, #open-settings-navbar-mobile-btn'
+  );
+  openSettingsNavbarBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      openSettingsModal('preferences');
+    });
+  });
 
   if (dom.closeShortcutsModalBtn) {
     dom.closeShortcutsModalBtn.addEventListener('click', () => {
